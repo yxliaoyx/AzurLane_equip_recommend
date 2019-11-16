@@ -1,6 +1,19 @@
 from bs4 import BeautifulSoup
 import urllib.request
 import urllib.parse
+import json
+
+
+def equip_name():
+    html_read = urllib.request.urlopen('http://wiki.joyme.com/blhx/%E8%A3%85%E5%A4%87').read()
+    html_parser = BeautifulSoup(html_read, features='html.parser')
+
+    equip_list = []
+    for table_ShowEquipNavPannel in html_parser.find_all('table', {'class': 'table-ShowEquipNavPannel'}):
+        for a in table_ShowEquipNavPannel.find_all('a'):
+            equip_list.append(a.get('title'))
+
+    return equip_list
 
 
 def KAN_SEN_name():
@@ -39,19 +52,32 @@ def equip_recommend(KAN_SEN, retries=3):
 
 
 if __name__ == '__main__':
+    equip_name_list = equip_name()
+    with open('equip_name_list.txt', 'w', encoding='utf-8') as f:
+        f.writelines([line + '\n' for line in equip_name_list])
+
     KAN_SEN_name_list = KAN_SEN_name()
     with open('KAN_SEN_name_list.txt', 'w', encoding='utf-8') as f:
         f.writelines([line + '\n' for line in KAN_SEN_name_list])
 
-    equip_dict = {}
-    for name in KAN_SEN_name_list:
-        print(name)
-        for equip in equip_recommend(name):
+    equip_dict = dict.fromkeys(equip_name_list)
+    for KAN_SEN in KAN_SEN_name_list:
+        print(KAN_SEN)
+        for equip in equip_recommend(KAN_SEN):
             try:
-                equip_dict[equip].add(name)
+                equip_dict[equip[:-2]].add(KAN_SEN)
+            except AttributeError:
+                equip_dict[equip[:-2]] = {KAN_SEN}
             except KeyError:
-                equip_dict[equip] = {name}
+                print('KeyError: {}'.format(equip))
 
     with open('equip_dict.txt', 'w', encoding='utf-8') as f:
         for k, v in equip_dict.items():
             print('{}\t{}'.format(k, v), file=f)
+            try:
+                equip_dict[k] = list(v)
+            except TypeError:
+                equip_dict[k] = []
+
+    with open('equip_dict.json', 'w', encoding='utf-8') as f:
+        json.dump(equip_dict, f, indent=2, ensure_ascii=False)
